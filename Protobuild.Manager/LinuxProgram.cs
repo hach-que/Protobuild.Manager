@@ -2,7 +2,6 @@
 using System;
 using System.Diagnostics;
 using System.Web;
-using GLib;
 using Gtk;
 using WebKit;
 using System.IO;
@@ -10,7 +9,7 @@ using System.Linq;
 
 namespace Protobuild.Manager
 {
-    public delegate void SignalDelegate(object obj, SignalArgs args);
+    public delegate void SignalDelegate(object obj, GLib.SignalArgs args);
 
     public static class Program
     {

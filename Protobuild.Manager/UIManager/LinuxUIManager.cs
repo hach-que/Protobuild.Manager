@@ -1,10 +1,9 @@
 ﻿#if PLATFORM_LINUX
 using System;
+using System.IO;
+using System.Web;
 using Gtk;
 using WebKit;
-using GLib;
-using System.Web;
-using System.IO;
 
 namespace Protobuild.Manager
 {
@@ -43,8 +42,14 @@ namespace Protobuild.Manager
             scrollWindow.Add(webView);
             _window.Add(scrollWindow);
             _window.WindowPosition = WindowPosition.Center;
-            _window.AllowGrow = false;
-            _window.AllowShrink = false;
+
+            Gdk.Geometry geom = new Gdk.Geometry();
+            geom.MinWidth = _window.DefaultWidth;
+            geom.MinHeight = _window.DefaultHeight;
+            geom.MaxWidth = _window.DefaultWidth;
+            geom.MaxHeight = _window.DefaultHeight;
+            _window.SetGeometryHints(_window, geom, Gdk.WindowHints.MinSize | Gdk.WindowHints.MaxSize);
+
             _window.BorderWidth = 0;
             _window.ShowAll();
 
@@ -58,33 +63,29 @@ namespace Protobuild.Manager
 
             try
             {
-                var signal = Signal.Lookup(webView, "resource-request-starting", typeof(SignalArgs));
-                signal.AddDelegate(new SignalDelegate((o, a) =>
-                {
-                    var resource = (WebResource)a.Args[1];
-                    Console.WriteLine("Starting: " + resource.Uri);
-                }));
+                webView.AddSignalHandler("resource-request-starting", new SignalDelegate((o, a) =>
+                        {
+                            var resource = (GLib.Object)a.Args[1];
+                            Console.WriteLine("Starting: " + WebViewWrapper.webkit_web_resource_get_uri(resource.Handle));
+                        }), typeof(GLib.SignalArgs));
 
-                signal = Signal.Lookup(webView, "resource-load-finished", typeof(SignalArgs));
-                signal.AddDelegate(new SignalDelegate((o, a) =>
-                {
-                    var resource = (WebResource)a.Args[1];
-                    Console.WriteLine("Load finished: " + resource.Uri);
-                }));
+                webView.AddSignalHandler("resource-load-finished", new SignalDelegate((o, a) =>
+                        {
+                            var resource = (GLib.Object)a.Args[1];
+                            //Console.WriteLine("Load finished: " + WebViewWrapper.webkit_web_resource_get_uri(resource.Handle));
+                        }), typeof(GLib.SignalArgs));
 
-                /*signal = Signal.Lookup(webView, "resource-content-length-received", typeof(SignalArgs));
-                signal.AddDelegate(new SignalDelegate((o, a) =>
-                {
-                    var resource = (WebResource)a.Args[1];
-                    //Console.WriteLine("Content length received: " + resource.Uri);
-                }));*/
+                webView.AddSignalHandler("resource-content-length-received", new SignalDelegate((o, a) =>
+                        {
+                            var resource = (GLib.Object)a.Args[1];
+                            //Console.WriteLine("Content length received: " + WebViewWrapper.webkit_web_resource_get_uri(resource.Handle));
+                        }), typeof(GLib.SignalArgs));
 
-                signal = Signal.Lookup(webView, "resource-response-received", typeof(SignalArgs));
-                signal.AddDelegate(new SignalDelegate((o, a) =>
-                {
-                    var resource = (WebResource)a.Args[1];
-                    Console.WriteLine("Resource response received: " + resource.Uri);
-                }));
+                webView.AddSignalHandler("resource-response-received", new SignalDelegate((o, a) =>
+                        {
+                            var resource = (GLib.Object)a.Args[1];
+                            //Console.WriteLine("Resource response received: " + WebViewWrapper.webkit_web_resource_get_uri(resource.Handle));
+                        }), typeof(GLib.SignalArgs));
             }
             catch (Exception e)
             {
@@ -94,7 +95,7 @@ namespace Protobuild.Manager
             webView.LoadUri(this.m_RuntimeServer.BaseUri);
 
             webView.NavigationRequested += (o, a) => {
-                var url = a.Request.Uri;
+                var url = WebViewWrapper.webkit_network_request_get_uri(a.Request.Handle);
                 var uri = new Uri(url);
 
                 if (uri.Scheme != "app")

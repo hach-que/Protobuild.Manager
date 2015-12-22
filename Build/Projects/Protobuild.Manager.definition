@@ -57,6 +57,7 @@
     <Compile Include="IDEAddinInstall\IIDEAddinInstall.cs" />
     <Compile Include="IDEAddinInstall\LinuxMonoDevelopAddinInstall.cs" />
     <Compile Include="IDEAddinInstall\NullIDEAddinInstall.cs" />
+    <Compile Include="Gtk3WebKit.cs" />
     <Compile Include="IDEControl\IIDEControl.cs" />
     <Compile Include="IDEControl\LinuxIDEControl.cs" />
     <Compile Include="IDEControl\MonoDevelopLinuxIDEControl.cs" />
