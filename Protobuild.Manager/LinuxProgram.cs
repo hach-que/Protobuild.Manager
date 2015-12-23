@@ -13,6 +13,15 @@ namespace Protobuild.Manager
 
     public static class Program
     {
+        public static string[] embeded_dlls =
+            {
+                "atk-sharp.dll",
+                "gdk-sharp.dll",
+                "gio-sharp.dll",
+                "glib-sharp.dll",
+                "gtk-sharp.dll"
+            };
+
         public static void Main(string[] args)
         {
             if (Debugger.IsAttached)
@@ -40,108 +49,49 @@ namespace Protobuild.Manager
                 {
                     Run(args);
                 }
-                catch (TypeInitializationException e)
-                {
-                    if (e.InnerException != null && e.InnerException.Message.Contains("libwebkitgtk-1.0.so.0"))
-                    {
-                        ShowRequiredLibrary(new[] {
-                            "zypper in libwebkitgtk-1__0-0"
-                        });
-                    }
-                    else if (e.InnerException != null && e.InnerException.Message.Contains("webkit-1.0"))
-                    {
-                        // Try and extract webkit-sharp next to the assembly.
-                        try
-                        {
-                            var assembly = typeof(Program).Assembly.GetManifestResourceStream("webkit-sharp.dll");
-                            var assemblyConfig = typeof(Program).Assembly.GetManifestResourceStream("webkit-sharp.dll.config");
-
-                            using (var writer = new FileStream(Path.Combine(new FileInfo(typeof(Program).Assembly.Location).DirectoryName, "webkit-sharp.dll"), FileMode.Create, FileAccess.Write))
-                            {
-                                assembly.CopyTo(writer);
-                            }
-                            using (var writer = new FileStream(Path.Combine(new FileInfo(typeof(Program).Assembly.Location).DirectoryName, "webkit-sharp.dll.config"), FileMode.Create, FileAccess.Write))
-                            {
-                                assemblyConfig.CopyTo(writer);
-                            }
-
-                            // We have to relaunch the executable to pick up the new libraries next to us.
-                            var process = System.Diagnostics.Process.Start("mono", "\"" + typeof(Program).Assembly.Location + "\" " + string.Join(" ", args));
-                            process.WaitForExit();
-
-                            if (process.ExitCode == 1)
-                            {
-                                File.Delete(Path.Combine(new FileInfo(typeof(Program).Assembly.Location).DirectoryName, "webkit-sharp.dll"));
-                                File.Delete(Path.Combine(new FileInfo(typeof(Program).Assembly.Location).DirectoryName, "webkit-sharp.dll.config"));
-                                ShowRequiredLibrary(new[] {
-                                    "zypper in webkit-sharp"
-                                });
-                            }
-
-                            Environment.Exit(process.ExitCode);
-                        }
-                        catch
-                        {
-                            ShowRequiredLibrary(new[] {
-                                "zypper in webkit-sharp"
-                            });
-                        }
-                    }
-                    else
-                    {
-                        Console.Error.WriteLine(e);
-                    }
-                }
-                catch (System.IO.FileNotFoundException e)
-                {
-                    if (e.Message.Contains("webkit-sharp"))
-                    {
-                        // Try and extract webkit-sharp next to the assembly.
-                        try
-                        {
-                            var assembly = typeof(Program).Assembly.GetManifestResourceStream("webkit-sharp.dll");
-                            var assemblyConfig = typeof(Program).Assembly.GetManifestResourceStream("webkit-sharp.dll.config");
-
-                            using (var writer = new FileStream(Path.Combine(new FileInfo(typeof(Program).Assembly.Location).DirectoryName, "webkit-sharp.dll"), FileMode.Create, FileAccess.Write))
-                            {
-                                assembly.CopyTo(writer);
-                            }
-                            using (var writer = new FileStream(Path.Combine(new FileInfo(typeof(Program).Assembly.Location).DirectoryName, "webkit-sharp.dll.config"), FileMode.Create, FileAccess.Write))
-                            {
-                                assemblyConfig.CopyTo(writer);
-                            }
-
-                            // We have to relaunch the executable to pick up the new libraries next to us.
-                            var process = System.Diagnostics.Process.Start("mono", "\"" + typeof(Program).Assembly.Location + "\" " + string.Join(" ", args));
-                            process.WaitForExit();
-
-                            if (process.ExitCode == 1)
-                            {
-                                File.Delete(Path.Combine(new FileInfo(typeof(Program).Assembly.Location).DirectoryName, "webkit-sharp.dll"));
-                                File.Delete(Path.Combine(new FileInfo(typeof(Program).Assembly.Location).DirectoryName, "webkit-sharp.dll.config"));
-                                ShowRequiredLibrary(new[] {
-                                    "zypper in webkit-sharp"
-                                });
-                            }
-
-                            Environment.Exit(process.ExitCode);
-                        }
-                        catch
-                        {
-                            ShowRequiredLibrary(new[] {
-                                "zypper in webkit-sharp"
-                            });
-                        }
-                    }
-                    else
-                    {
-                        Console.Error.WriteLine(e);
-                    }
-                }
                 catch (Exception e)
-                {
-                    Console.Error.WriteLine(e);
+                { 
+                    // we don't want an infinite loop
+                    if (args.ToList().Contains("--internalbreak"))
+                        return;
+                    
+                    if (e is FileNotFoundException || e is TypeInitializationException)
+                    {
+                        foreach (var ed in embeded_dlls)
+                        {
+                            WriteResource(ed, true);
+                            WriteResource(ed + ".config", true);
+
+                            // TODO Include native .so libraries and extract the ones 
+                            // needed for the current PC architecture
+                        }
+
+                        if (!ReRun(args))
+                            Console.Error.WriteLine(e);
+                    }
+                    else
+                        Console.Error.WriteLine(e);
                 }
+            }
+        }
+
+        private static void WriteResource(string resource, bool overide)
+        {
+            try
+            {
+                var res = typeof(Program).Assembly.GetManifestResourceStream(resource);
+                var path_to_write = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, resource);
+
+                if(overide && File.Exists(path_to_write))
+                    File.Delete(path_to_write);
+                else if(!overide && File.Exists(path_to_write))
+                    return;
+                
+                using (var writer = new FileStream(path_to_write, FileMode.Create, FileAccess.Write))
+                    res.CopyTo(writer);
+            }
+            catch
+            {
             }
         }
 
@@ -185,6 +135,14 @@ namespace Protobuild.Manager
 
             var startup = kernel.Get<IStartup>();
             startup.Start(args);
+        }
+
+        public static bool ReRun(string[] args)
+        {
+            var process = Process.Start("mono", "\"" + typeof(Program).Assembly.Location + "\" --internalbreak " + string.Join(" ", args));
+            process.WaitForExit();
+
+            return process.ExitCode == 0;
         }
     }
 }

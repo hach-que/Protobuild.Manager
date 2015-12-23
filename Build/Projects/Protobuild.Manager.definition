@@ -52,12 +52,12 @@
     <Compile Include="Execution\MacOSExecution.cs" />
     <Compile Include="Execution\WindowsExecution.cs" />
     <Compile Include="GameUpdater.cs" />
+    <Compile Include="Gtk3WebKit.cs" />
     <Compile Include="IDEAddinInstall\AddinPackageDownload.cs" />
     <Compile Include="IDEAddinInstall\IAddinPackageDownload.cs" />
     <Compile Include="IDEAddinInstall\IIDEAddinInstall.cs" />
     <Compile Include="IDEAddinInstall\LinuxMonoDevelopAddinInstall.cs" />
     <Compile Include="IDEAddinInstall\NullIDEAddinInstall.cs" />
-    <Compile Include="Gtk3WebKit.cs" />
     <Compile Include="IDEControl\IIDEControl.cs" />
     <Compile Include="IDEControl\LinuxIDEControl.cs" />
     <Compile Include="IDEControl\MonoDevelopLinuxIDEControl.cs" />
@@ -144,14 +144,54 @@
       <Link>Protobuild.Icon.ico</Link>
       <LogicalName>Protobuild.Icon.ico</LogicalName>
     </EmbeddedResource>
-    <EmbeddedResource Include="..\Libraries\webkit-sharp.dll">
-      <Link>webkit-sharp.dll</Link>
-      <LogicalName>webkit-sharp.dll</LogicalName>
+    <EmbeddedResource Include="..\Libraries\atk-sharp.dll">
+      <Link>atk-sharp.dll</Link>
+      <LogicalName>atk-sharp.dll</LogicalName>
       <Platforms>Linux</Platforms>
     </EmbeddedResource>
-    <EmbeddedResource Include="..\Libraries\webkit-sharp.dll.config">
-      <Link>webkit-sharp.dll.config</Link>
-      <LogicalName>webkit-sharp.dll.config</LogicalName>
+    <EmbeddedResource Include="..\Libraries\atk-sharp.dll.config">
+      <Link>atk-sharp.dll.config</Link>
+      <LogicalName>atk-sharp.dll.config</LogicalName>
+      <Platforms>Linux</Platforms>
+    </EmbeddedResource>
+    <EmbeddedResource Include="..\Libraries\gdk-sharp.dll">
+      <Link>gdk-sharp.dll</Link>
+      <LogicalName>gdk-sharp.dll</LogicalName>
+      <Platforms>Linux</Platforms>
+    </EmbeddedResource>
+    <EmbeddedResource Include="..\Libraries\gdk-sharp.dll.config">
+      <Link>gdk-sharp.dll.config</Link>
+      <LogicalName>gdk-sharp.dll.config</LogicalName>
+      <Platforms>Linux</Platforms>
+    </EmbeddedResource>
+    <EmbeddedResource Include="..\Libraries\gio-sharp.dll">
+      <Link>gio-sharp.dll</Link>
+      <LogicalName>gio-sharp.dll</LogicalName>
+      <Platforms>Linux</Platforms>
+    </EmbeddedResource>
+    <EmbeddedResource Include="..\Libraries\gio-sharp.dll.config">
+      <Link>gio-sharp.dll.config</Link>
+      <LogicalName>gio-sharp.dll.config</LogicalName>
+      <Platforms>Linux</Platforms>
+    </EmbeddedResource>
+    <EmbeddedResource Include="..\Libraries\glib-sharp.dll">
+      <Link>glib-sharp.dll</Link>
+      <LogicalName>glib-sharp.dll</LogicalName>
+      <Platforms>Linux</Platforms>
+    </EmbeddedResource>
+    <EmbeddedResource Include="..\Libraries\glib-sharp.dll.config">
+      <Link>glib-sharp.dll.config</Link>
+      <LogicalName>glib-sharp.dll.config</LogicalName>
+      <Platforms>Linux</Platforms>
+    </EmbeddedResource>
+    <EmbeddedResource Include="..\Libraries\gtk-sharp.dll">
+      <Link>gtk-sharp.dll</Link>
+      <LogicalName>gtk-sharp.dll</LogicalName>
+      <Platforms>Linux</Platforms>
+    </EmbeddedResource>
+    <EmbeddedResource Include="..\Libraries\gtk-sharp.dll.config">
+      <Link>gtk-sharp.dll.config</Link>
+      <LogicalName>gtk-sharp.dll.config</LogicalName>
       <Platforms>Linux</Platforms>
     </EmbeddedResource>
     <EmbeddedResource Include="Branding.xml">
