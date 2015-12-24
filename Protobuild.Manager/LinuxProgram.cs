@@ -54,20 +54,35 @@ namespace Protobuild.Manager
                     // we don't want an infinite loop
                     if (args.ToList().Contains("--internalbreak"))
                         return;
-                    
+
+                    var is64Bit = Is64Bit();
+
                     if (e is FileNotFoundException || e is TypeInitializationException)
                     {
                         foreach (var ed in embeded_dlls)
                         {
-                            WriteResource(ed, true);
-                            WriteResource(ed + ".config", true);
+                            if (ed.EndsWith(".dll"))
+                            {
+                                WriteResource(ed, true);
+                                WriteResource(ed + ".config", true);
+                            }
+                            else if (ed.EndsWith(".so"))
+                            {
+                                if (is64Bit)
+                                {
+                                    
+                                }
+                                else
+                                {
+                                    
+                                }
 
-                            // TODO Include native .so libraries and extract the ones 
-                            // needed for the current PC architecture
+                                // TODO Include native .so libraries and extract the ones 
+                                // needed for the current PC architecture
+                            }
                         }
 
-                        if (!ReRun(args))
-                            Console.Error.WriteLine(e);
+                        Environment.Exit(ReRun(args));
                     }
                     else
                         Console.Error.WriteLine(e);
@@ -137,12 +152,30 @@ namespace Protobuild.Manager
             startup.Start(args);
         }
 
-        public static bool ReRun(string[] args)
+        public static int ReRun(string[] args)
         {
             var process = Process.Start("mono", "\"" + typeof(Program).Assembly.Location + "\" --internalbreak " + string.Join(" ", args));
             process.WaitForExit();
 
-            return process.ExitCode == 0;
+            return process.ExitCode;
+        }
+
+        public static bool Is64Bit()
+        {
+            bool ret = false;
+
+            var proc = new Process ();
+            proc.StartInfo.FileName = "/bin/bash";
+            proc.StartInfo.Arguments = "-c \"uname -a\"";
+            proc.StartInfo.UseShellExecute = false; 
+            proc.StartInfo.RedirectStandardOutput = true;
+            proc.Start ();
+
+            while (!proc.StandardOutput.EndOfStream) 
+                if (proc.StandardOutput.ReadLine().Contains("x86_64"))
+                    ret = true;
+
+            return ret;
         }
     }
 }
