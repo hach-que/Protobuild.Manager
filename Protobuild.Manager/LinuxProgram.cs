@@ -6,6 +6,7 @@ using Gtk;
 using WebKit;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 
 namespace Protobuild.Manager
 {
@@ -22,71 +23,73 @@ namespace Protobuild.Manager
                 "gtk-sharp.dll"
             };
 
+        public static bool IsAssemblyInGAC(string assemblyFullName)
+        {
+            try
+            {
+                return Assembly.ReflectionOnlyLoad(assemblyFullName).GlobalAssemblyCache;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
         public static void Main(string[] args)
         {
-            if (Debugger.IsAttached)
+            var is64Bit = Is64Bit();
+
+            if (!IsAssemblyInGAC("gtk-sharp, Version=3.0.0.0, Culture=neutral, PublicKeyToken=35e10195dab3c99f"))
             {
-                GLib.ExceptionManager.UnhandledException += (e) => 
+                foreach (var ed in embeded_dlls)
                 {
-                    Console.Error.WriteLine(e.ExceptionObject);
-                    Debugger.Break();
-                };
+                    if (ed.EndsWith(".dll"))
+                    {
+                        WriteResource(ed, true);
+                        WriteResource(ed + ".config", true);
+                    }
+                    else if (ed.EndsWith(".so"))
+                    {
+                        if (is64Bit)
+                        {
+
+                        }
+                        else
+                        {
+
+                        }
+
+                        // TODO Include native .so libraries and extract the ones 
+                        // needed for the current PC architecture
+                    }
+                }
+            }
+
+            try
+            {
+                if (Debugger.IsAttached)
+                {
+                    GLib.ExceptionManager.UnhandledException += (e) => 
+                    {
+                        Console.Error.WriteLine(e.ExceptionObject);
+                        Debugger.Break();
+                    };
+                }
+                else
+                {
+                    AppDomain.CurrentDomain.UnhandledException +=
+                        (sender, e) => Console.Error.WriteLine((Exception)e.ExceptionObject);
+                    
+                    GLib.ExceptionManager.UnhandledException += (e) => 
+                        {
+                            Console.Error.WriteLine((Exception)e.ExceptionObject);
+                            e.ExitApplication = true;
+                        };
+                }
 
                 Run(args);
             }
-            else
-            {
-                AppDomain.CurrentDomain.UnhandledException +=
-                    (sender, e) => Console.Error.WriteLine((Exception)e.ExceptionObject);
-
-                GLib.ExceptionManager.UnhandledException += (e) => 
-                {
-                    Console.Error.WriteLine((Exception)e.ExceptionObject);
-                    e.ExitApplication = true;
-                };
-
-                try
-                {
-                    Run(args);
-                }
-                catch (Exception e)
-                { 
-                    // we don't want an infinite loop
-                    if (args.ToList().Contains("--internalbreak"))
-                        return;
-
-                    var is64Bit = Is64Bit();
-
-                    if (e is FileNotFoundException || e is TypeInitializationException)
-                    {
-                        foreach (var ed in embeded_dlls)
-                        {
-                            if (ed.EndsWith(".dll"))
-                            {
-                                WriteResource(ed, true);
-                                WriteResource(ed + ".config", true);
-                            }
-                            else if (ed.EndsWith(".so"))
-                            {
-                                if (is64Bit)
-                                {
-                                    
-                                }
-                                else
-                                {
-                                    
-                                }
-
-                                // TODO Include native .so libraries and extract the ones 
-                                // needed for the current PC architecture
-                            }
-                        }
-
-                        Environment.Exit(ReRun(args));
-                    }
-                    else
-                        Console.Error.WriteLine(e);
-                }
+            catch {
             }
         }
 
@@ -150,14 +153,6 @@ namespace Protobuild.Manager
 
             var startup = kernel.Get<IStartup>();
             startup.Start(args);
-        }
-
-        public static int ReRun(string[] args)
-        {
-            var process = Process.Start("mono", "\"" + typeof(Program).Assembly.Location + "\" --internalbreak " + string.Join(" ", args));
-            process.WaitForExit();
-
-            return process.ExitCode;
         }
 
         public static bool Is64Bit()
