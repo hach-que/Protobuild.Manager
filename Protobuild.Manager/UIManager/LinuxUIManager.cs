@@ -3,7 +3,7 @@ using System;
 using System.IO;
 using System.Web;
 using Gtk;
-using WebKit;
+using WebKit2;
 
 namespace Protobuild.Manager
 {
@@ -16,6 +16,8 @@ namespace Protobuild.Manager
         private readonly IBrandingEngine _brandingEngine;
 
         private Window _window;
+
+        private WebView _webView;
 
         internal LinuxUIManager(RuntimeServer server, IAppHandlerManager appHandlerManager, IBrandingEngine brandingEngine)
         {
@@ -35,11 +37,10 @@ namespace Protobuild.Manager
                 Application.Quit();
             };
             ScrolledWindow scrollWindow = new ScrolledWindow();
-            WebView webView = new WebView();
-            webView.SetSizeRequest(720, 400);
-            webView.Transparent = true;
-            webView.BorderWidth = 0;
-            scrollWindow.Add(webView);
+            _webView = new WebView();
+            _webView.SetSizeRequest(720, 400);
+            _webView.BorderWidth = 0;
+            scrollWindow.Add(_webView);
             _window.Add(scrollWindow);
             _window.WindowPosition = WindowPosition.Center;
 
@@ -54,61 +55,48 @@ namespace Protobuild.Manager
             _window.ShowAll();
 
             this.m_RuntimeServer.RegisterRuntimeInjector(x => 
-                Application.Invoke((oo, aa) => webView.ExecuteScript(x)));
+                Application.Invoke((oo, aa) => _webView.ExecuteScript(x)));
 
-            webView.LoadCommitted += (o, a) => _window.Title = _brandingEngine.ProductName;
-            webView.LoadFinished += (o, a) => _window.Title = _brandingEngine.ProductName;
-            webView.LoadProgressChanged += (o, a) => _window.Title = _brandingEngine.ProductName + " (" + a.Progress + "% Loaded)";
-            webView.LoadStarted += (o, a) => _window.Title = _brandingEngine.ProductName + " (0% Loaded)";
-
-            try
+            _webView.LoadChanged += (o, args) =>
             {
-                webView.AddSignalHandler("resource-request-starting", new SignalDelegate((o, a) =>
-                        {
-                            var resource = (GLib.Object)a.Args[1];
-                            Console.WriteLine("Starting: " + WebViewWrapper.webkit_web_resource_get_uri(resource.Handle));
-                        }), typeof(GLib.SignalArgs));
-
-                webView.AddSignalHandler("resource-load-finished", new SignalDelegate((o, a) =>
-                        {
-                            var resource = (GLib.Object)a.Args[1];
-                            //Console.WriteLine("Load finished: " + WebViewWrapper.webkit_web_resource_get_uri(resource.Handle));
-                        }), typeof(GLib.SignalArgs));
-
-                webView.AddSignalHandler("resource-content-length-received", new SignalDelegate((o, a) =>
-                        {
-                            var resource = (GLib.Object)a.Args[1];
-                            //Console.WriteLine("Content length received: " + WebViewWrapper.webkit_web_resource_get_uri(resource.Handle));
-                        }), typeof(GLib.SignalArgs));
-
-                webView.AddSignalHandler("resource-response-received", new SignalDelegate((o, a) =>
-                        {
-                            var resource = (GLib.Object)a.Args[1];
-                            //Console.WriteLine("Resource response received: " + WebViewWrapper.webkit_web_resource_get_uri(resource.Handle));
-                        }), typeof(GLib.SignalArgs));
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine(e);
-            }
-
-            webView.LoadUri(this.m_RuntimeServer.BaseUri);
-
-            webView.NavigationRequested += (o, a) => {
-                var url = WebViewWrapper.webkit_network_request_get_uri(a.Request.Handle);
-                var uri = new Uri(url);
-
-                if (uri.Scheme != "app")
+                switch (args.LoadEvent)
                 {
-                    return;
+                    case LoadEvent.LoadCommitted:
+                        _window.Title = _brandingEngine.ProductName;
+                        break;
+                    case LoadEvent.LoadFinished:
+                        _window.Title = _brandingEngine.ProductName;
+                        break;
+                    case LoadEvent.LoadStarted:
+                        _window.Title = _brandingEngine.ProductName + " (Loading...)";
+                        break;
                 }
-
-                this.m_AppHandlerManager.Handle(uri.AbsolutePath, HttpUtility.ParseQueryString(uri.Query));
-
-                webView.StopLoading();
             };
 
+            _webView.LoadUri(this.m_RuntimeServer.BaseUri);
+            _webView.DecidePolicy += WebView_DecidePolicy;
+
             Application.Run();
+        }
+
+        [GLib.ConnectBefore]
+        unsafe void WebView_DecidePolicy(object o, DecideArgs args)
+        {
+            switch (args.Type)
+            {
+                case PolicyDecisionsType.NavigationAction:
+                    var request = WebViewWrapper.webkit_navigation_policy_decision_get_request(args.Decision.Handle);
+                    var url = WebViewWrapper.GetString(WebViewWrapper.webkit_uri_request_get_uri(request));
+                    var uri = new Uri(url);
+
+                    if (uri.Scheme != "app")
+                        return;
+                    
+                    this.m_AppHandlerManager.Handle(uri.AbsolutePath, HttpUtility.ParseQueryString(uri.Query));
+
+                    args.RetVal = true;
+                    break;
+            }
         }
 
         public void Quit()
