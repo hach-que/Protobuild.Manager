@@ -415,18 +415,21 @@ namespace Protobuild.Manager
                 }
             }
             
-            var versions = new[] {"14.0", "12.0", "11.0", "10.0"};
-            foreach (var version in versions)
+            if (!started)
             {
-                var idePath = @"C:\Program Files (x86)\Microsoft Visual Studio " + version +
-                              @"\Common7\IDE\devenv.exe";
-                if (File.Exists(idePath))
+                var versions = new[] {"14.0", "12.0", "11.0", "10.0"};
+                foreach (var version in versions)
                 {
-                    Process.Start(
-                        idePath,
-                        "\"" + Path.Combine(modulePath, moduleName + "." + targetPlatform + ".sln") + "\"");
-                    started = true;
-                    break;
+                    var idePath = @"C:\Program Files (x86)\Microsoft Visual Studio " + version +
+                                @"\Common7\IDE\devenv.exe";
+                    if (File.Exists(idePath))
+                    {
+                        Process.Start(
+                            idePath,
+                            "\"" + Path.Combine(modulePath, moduleName + "." + targetPlatform + ".sln") + "\"");
+                        started = true;
+                        break;
+                    }
                 }
             }
 
