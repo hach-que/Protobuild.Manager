@@ -1,6 +1,8 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.ComTypes;
 using System.Threading.Tasks;
@@ -12,12 +14,18 @@ namespace Protobuild.Manager
         private readonly RuntimeServer _runtimeServer;
         private readonly IProcessLog _processLog;
         private readonly IExecution _execution;
+        private readonly IProtobuildProvider _protobuildProvider;
 
-        public VisualStudioIDEControl(RuntimeServer runtimeServer, IProcessLog processLog, IExecution execution)
+        public VisualStudioIDEControl(
+            RuntimeServer runtimeServer,
+            IProcessLog processLog,
+            IExecution execution,
+            IProtobuildProvider protobuildProvider)
         {
             _runtimeServer = runtimeServer;
             _processLog = processLog;
             _execution = execution;
+            _protobuildProvider = protobuildProvider;
         }
 
         public async Task LoadSolution(string modulePath, string moduleName, string targetPlatform, string oldPlatformOnFail, bool isProtobuild)
@@ -326,9 +334,88 @@ namespace Protobuild.Manager
         private async Task<dynamic> LaunchVisualStudio(string modulePath, string moduleName, string targetPlatform, int? vspid, dynamic existing)
         {
             _runtimeServer.Set("status", "Starting Visual Studio...");
+            
+            // Newer installs of Visual Studio (like 2017) don't create registry entries for MSBuild, so we have to
+            // use a tool called vswhere in order to find MSBuild on these systems.  This call will implicitly install
+            // the vswhere package if it's not already installed.
+            var protobuild = await _protobuildProvider.GetProtobuild(status =>
+            {
+                _runtimeServer.Set("status", status);
+            });
+            List<string> installations = null;
+            if (protobuild != null && File.Exists(protobuild))
+            {
+                try
+                {
+                    var processStartInfo = new ProcessStartInfo();
+                    processStartInfo.FileName = protobuild;
+                    processStartInfo.Arguments = "--execute vswhere -products * -requires Microsoft.VisualStudio.Workload.CoreEditor -property installationPath";
+                    processStartInfo.UseShellExecute = false;
+                    processStartInfo.RedirectStandardOutput = true;
+                    processStartInfo.CreateNoWindow = true;
+                    var process = Process.Start(processStartInfo);
+                    var installationsString = process.StandardOutput.ReadToEnd();
+                    installations = installationsString.Split(new[] { Environment.NewLine }, StringSplitOptions.RemoveEmptyEntries).Where(x => !string.IsNullOrWhiteSpace(x)).ToList();
+                    process.WaitForExit();
 
-            var versions = new[] {"14.0", "12.0", "11.0", "10.0"};
+                    if (process.ExitCode != 0)
+                    {
+                        // Try to install vswhere (it may not be installed).
+                        processStartInfo = new ProcessStartInfo();
+                        processStartInfo.FileName = protobuild;
+                        processStartInfo.Arguments = "--install Protobuild.vswhere";
+                        processStartInfo.UseShellExecute = false;
+                        processStartInfo.RedirectStandardOutput = true;
+                        processStartInfo.CreateNoWindow = true;
+                        process = Process.Start(processStartInfo);
+                        process.WaitForExit();
+
+                        if (process.ExitCode != 0)
+                        {
+                            // Can't use vswhere.
+                        }
+                        else
+                        {
+                            // Install worked, try again.
+                            processStartInfo = new ProcessStartInfo();
+                            processStartInfo.FileName = protobuild;
+                            processStartInfo.Arguments = "--execute vswhere -products * -requires Microsoft.VisualStudio.Workload.CoreEditor -property installationPath";
+                            processStartInfo.UseShellExecute = false;
+                            processStartInfo.RedirectStandardOutput = true;
+                            processStartInfo.CreateNoWindow = true;
+                            process = Process.Start(processStartInfo);
+                            installationsString = process.StandardOutput.ReadToEnd();
+                            installations = installationsString.Split(new[] { Environment.NewLine }, StringSplitOptions.RemoveEmptyEntries).Where(x => !string.IsNullOrWhiteSpace(x)).ToList();
+                            process.WaitForExit();
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    // Can't find any installations.
+                }
+            }
+
             var started = false;
+
+            if (installations != null)
+            {
+                // Check if the IDE is present in any of those installation paths.
+                foreach (var basePath in installations)
+                {
+                    var ideLocation = Path.Combine(basePath, "Common7\\IDE\\devenv.exe");
+                    if (File.Exists(ideLocation))
+                    {
+                        Process.Start(
+                            ideLocation,
+                            "\"" + Path.Combine(modulePath, moduleName + "." + targetPlatform + ".sln") + "\"");
+                        started = true;
+                        break;
+                    }
+                }
+            }
+            
+            var versions = new[] {"14.0", "12.0", "11.0", "10.0"};
             foreach (var version in versions)
             {
                 var idePath = @"C:\Program Files (x86)\Microsoft Visual Studio " + version +
