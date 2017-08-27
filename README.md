@@ -31,6 +31,14 @@ curl -L https://github.com/Protobuild/Protobuild.Manager/releases/download/lates
 
 On Linux, we provide a script to complete the installation.  Depending on your distro, you may need to install dependency packages.  Instructions for known distributions are listed below:
 
+#### Arch Linux
+```bash
+# Install Mono and GTK# 3 with the following command:
+sudo pacman -S mono gtk-sharp-3 webkitgtk3
+# Run the script to install Protobuild Manager:
+curl -L https://github.com/Protobuild/Protobuild.Manager/releases/download/latest/ProtobuildLinuxInstall.sh | bash
+```
+
 #### Fedora
 
 ```bash
@@ -44,7 +52,7 @@ curl -L https://github.com/Protobuild/Protobuild.Manager/releases/download/lates
 
 ```bash
 # Install Mono, GTK# 3 and WebKit GTK 3 with the following command:
-sudo zypper in mono-core gtk-sharp3 libwebkitgtk-3_0_0
+sudo zypper in mono-core gtk-sharp3 libwebkit2gtk-4
 # Run the script to install Protobuild Manager:
 curl -L https://github.com/Protobuild/Protobuild.Manager/releases/download/latest/ProtobuildLinuxInstall.sh | bash
 ```
@@ -56,7 +64,7 @@ curl -L https://github.com/Protobuild/Protobuild.Manager/releases/download/lates
 sudo add-apt-repository "deb http://archive.ubuntu.com/ubuntu $(lsb_release -sc) universe"
 sudo apt update
 # Install Mono, GTK# 3, WebKit GTK 3 and extra libraries with the following command:
-sudo apt install mono-runtime gtk-sharp3 libwebkitgtk-3.0-0 libmono-system-web-extensions4.0-cil
+sudo apt install mono-runtime gtk-sharp3 libwebkit2gtk-4.0-37 libmono-system-web-extensions4.0-cil
 # Run the script to install Protobuild Manager:
 curl -L https://github.com/Protobuild/Protobuild.Manager/releases/download/latest/ProtobuildLinuxInstall.sh | bash
 ```
